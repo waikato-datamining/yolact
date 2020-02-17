@@ -1,3 +1,5 @@
+from data.config import dataset_base, yolact_resnet50_config             
+
 external_dataset = dataset_base.copy({
     'name': 'External Dataset',
 

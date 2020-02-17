@@ -18,4 +18,4 @@ RUN apt-get update && \
 COPY config.py /yolact/data
 COPY yolact_train /usr/bin
 COPY yolact_eval /usr/bin
-
+ENV PYTHONPATH=/yolact
