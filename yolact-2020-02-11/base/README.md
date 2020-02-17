@@ -88,10 +88,16 @@ Timestamp:
 * <a name="run">Run</a>
 
   ```
-  docker run --runtime=nvidia -v /local:/container -it yolact/yolact:2020-02-11
+  docker run --runtime=nvidia --shm-size 8G -v /local:/container -it yolact/yolact:2020-02-11
   ```
 
-  `/local:/container` maps a local disk directory into a directory inside the container
+  `/local:/container` maps a local disk directory into a directory inside the container.
+  Typically, you would map the `weights` (pre-trained models) and the data (annotations, 
+  log, etc):
+
+  ```
+  -v /some/where/dataset01:/data -v /some/where/yolact/pretrained:/yolact/weights
+  ```
 
 
 ## Usage
@@ -119,7 +125,7 @@ Timestamp:
 * Evaluate
 
   ```
-  yolact_eval --config=external_config --trained_model=weights/model.pth \
+  yolact_eval --config=external_config --trained_model=weights/MODELNAME.pth \
     --score_threshold=0.15 --top_k=200 \
     --images=/predictions/in/:/predictions/out/
   ```
