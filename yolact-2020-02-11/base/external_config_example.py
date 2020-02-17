@@ -3,6 +3,7 @@ from data.config import dataset_base, yolact_resnet50_config
 external_dataset = dataset_base.copy({
     'name': 'External Dataset',
 
+    # "/data/images" refers to the directory inside the docker container
     'train_images': '/data/images',
     'train_info':   '/data/images/train.json',
 
@@ -15,10 +16,10 @@ external_dataset = dataset_base.copy({
 
 
 external_config = yolact_resnet50_config.copy({
-    'name': 'External config',
+    'name': 'External config',  # this name gets used for storing model files: NAME_XXX_YYY.pth
     
     # Dataset stuff
-    'dataset': external_dataset,
+    'dataset': external_dataset,  # references the above dataset via its variable name
     'num_classes': 4,  # labels + 1 for background
 
     'max_iter': 120000,
