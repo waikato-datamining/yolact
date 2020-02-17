@@ -824,3 +824,17 @@ def set_dataset(dataset_name:str):
     """ Sets the dataset of the current config. """
     cfg.dataset = eval(dataset_name)
     
+
+# import external config/dataset from file referenced in YOLACT_CONFIG env var
+# taken from here:
+# https://stackoverflow.com/questions/57060982/
+import os
+import importlib.util
+if os.getenv('YOLACT_CONFIG') is not None:
+    if os.path.exists(os.getenv('YOLACT_CONFIG')):
+        spec = importlib.util.spec_from_file_location('external_config', os.environ['YOLACT_CONFIG'])
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        external_config = module.external_config
+        external_dataset = module.external_dataset
+
