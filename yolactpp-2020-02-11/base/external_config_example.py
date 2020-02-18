@@ -1,4 +1,4 @@
-from data.config import dataset_base, yolact_resnet50_config             
+from data.config import dataset_base, yolact_plus_resnet50_config
 
 external_dataset = dataset_base.copy({
     'name': 'External Dataset',
@@ -15,7 +15,7 @@ external_dataset = dataset_base.copy({
 })
 
 
-external_config = yolact_resnet50_config.copy({
+external_config = yolact_plus_resnet50_config.copy({
     'name': 'External config',  # this name gets used for storing model files: NAME_XXX_YYY.pth
     
     # Dataset stuff
@@ -24,10 +24,5 @@ external_config = yolact_resnet50_config.copy({
 
     'max_iter': 120000,
     'lr_steps': (60000, 100000),
-    
-    'backbone': yolact_resnet50_config.backbone.copy({
-        'pred_scales': [[32], [64], [128], [256], [512]],
-        'use_square_anchors': False,
-    })
 })
 
