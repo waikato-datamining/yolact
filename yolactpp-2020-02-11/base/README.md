@@ -112,7 +112,7 @@ Timestamp:
   These will get mapped by the modified `config.py` in the image to 
   `external_dataset` and `external_config`.
 
-  See [external_config_example.py](external_config_example.py) for an
+  See [external_config_example_plus.py](external_config_example_plus.py) for an
   example module.
 
 * Train
