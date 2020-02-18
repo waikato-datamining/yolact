@@ -18,7 +18,7 @@ RUN apt-get update && \
 # (fails at build time, due to graphics card not getting passed through)
 COPY setup.py /yolactpp/external/DCNv2/
 RUN cd /yolactpp/external/DCNv2 && \
-    python setup.py build develop & \
+    python setup.py build develop && \
     rm -Rf /root/.cache/pip && \
     rm -rf /var/lib/apt/lists/*
 
