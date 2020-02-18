@@ -115,6 +115,13 @@ Timestamp:
   See [external_config_example_plus.py](external_config_example_plus.py) for an
   example module.
 
+  For example, if your configuration will be available in the docker container
+  as `/data/config/model-01.py` then you export the following environment variable:
+
+  ```
+  export YOLACTPP_CONFIG=/data/config/model-01.py
+  ```
+
 * Train
 
   ```
