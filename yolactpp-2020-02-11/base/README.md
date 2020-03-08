@@ -137,3 +137,11 @@ Timestamp:
     --images=/predictions/in/:/predictions/out/
   ```
 
+* Predict
+
+  ```
+  yolactpp_predict --config=external_config --trained_model=weights/MODELNAME.pth \
+    --score_threshold=0.15 --top_k=200 \
+    --output_polygons --output_minrect \
+    --prediction_in /predictions/in/ --prediction_out /predictions/out/    
+  ```

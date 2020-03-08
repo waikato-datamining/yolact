@@ -1,4 +1,4 @@
 #!/bin/bash
 
-cd /yolactpp
+cd /yolact
 python predict.py "$@"
