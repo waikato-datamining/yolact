@@ -12,7 +12,7 @@ RUN apt-get update && \
     cd /yolactpp && \
     git reset --hard f54b0a5b17a7c547e92c4d7026be6542f43862e7 && \
     pip install Cython && \
-    pip install opencv-python "pillow<7.0.0" pycocotools matplotlib torchvision==0.4.0
+    pip install opencv-python "pillow<7.0.0" pycocotools matplotlib torchvision==0.4.0 python_image_complete wai.annotations
 
 # copy version of setup without torch check whether cuda is present
 # (fails at build time, due to graphics card not getting passed through)
@@ -23,7 +23,7 @@ RUN cd /yolactpp/external/DCNv2 && \
     rm -rf /var/lib/apt/lists/*
 
 COPY config.py /yolactpp/data
-COPY yolactpp_train /usr/bin
-COPY yolactpp_eval /usr/bin
+COPY predict.py /yolactpp
+COPY yolactpp_* /usr/bin
 ENV PYTHONPATH=/yolactpp
 

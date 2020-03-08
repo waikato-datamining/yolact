@@ -11,11 +11,11 @@ RUN apt-get update && \
     cd /yolact && \
     git reset --hard f54b0a5b17a7c547e92c4d7026be6542f43862e7 && \
     pip install Cython && \
-    pip install opencv-python "pillow<7.0.0" pycocotools matplotlib torchvision==0.4.0 && \
+    pip install opencv-python "pillow<7.0.0" pycocotools matplotlib torchvision==0.4.0 python_image_complete wai.annotations && \
     rm -Rf /root/.cache/pip && \
     rm -rf /var/lib/apt/lists/*
 
 COPY config.py /yolact/data
-COPY yolact_train /usr/bin
-COPY yolact_eval /usr/bin
+COPY predict.py /yolact
+COPY yolact_* /usr/bin
 ENV PYTHONPATH=/yolact
