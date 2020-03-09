@@ -106,7 +106,8 @@ def predictions_to_rois(dets_out, width, height, top_k, score_threshold,
                 pxn = []
                 pyn = []
                 mask = masks[j,:,:][:,:,0]
-                poly = mask_to_polygon(mask, mask_threshold=mask_threshold, mask_nth=mask_nth, view=(x0, y0, x1, y1), view_margin=view_margin, fully_connected=fully_connected)
+                poly = mask_to_polygon(mask, mask_threshold=mask_threshold, mask_nth=mask_nth, view=(x0, y0, x1, y1),
+                                       view_margin=view_margin, fully_connected=fully_connected)
                 if len(poly) > 0:
                     px, py = polygon_to_lists(poly[0], swap_x_y=True, normalize=False, as_string=True)
                     pxn, pyn = polygon_to_lists(poly[0], swap_x_y=True, normalize=True, img_width=width, img_height=height, as_string=True)
