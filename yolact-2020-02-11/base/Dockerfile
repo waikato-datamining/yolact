@@ -17,5 +17,5 @@ RUN apt-get update && \
 
 COPY config.py /yolact/data
 COPY predict.py /yolact
-COPY yolact_* /usr/bin
+COPY yolact_* /usr/bin/
 ENV PYTHONPATH=/yolact

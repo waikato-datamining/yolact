@@ -24,6 +24,6 @@ RUN cd /yolactpp/external/DCNv2 && \
 
 COPY config.py /yolactpp/data
 COPY predict.py /yolactpp
-COPY yolactpp_* /usr/bin
+COPY yolactpp_* /usr/bin/
 ENV PYTHONPATH=/yolactpp
 
