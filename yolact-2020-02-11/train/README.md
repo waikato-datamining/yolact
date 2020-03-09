@@ -40,21 +40,21 @@ Timestamp:
 * Build
 
   ```
-  docker build -t yolact/yolact:2020-02-11_train .
+  docker build -t yolact/yolact_train:2020-02-11 .
   ```
 
 * Tag
 
   ```
   docker tag \
-    yolact/yolact:2020-02-11_train \
-    public-push.aml-repo.cms.waikato.ac.nz:443/yolact/yolact:2020-02-11_train
+    yolact/yolact_train:2020-02-11 \
+    public-push.aml-repo.cms.waikato.ac.nz:443/yolact/yolact_train:2020-02-11
   ```
 
 * Push
 
   ```
-  docker push public-push.aml-repo.cms.waikato.ac.nz:443/yolact/yolact:2020-02-11_train
+  docker push public-push.aml-repo.cms.waikato.ac.nz:443/yolact/yolact_train:2020-02-11
   ```
 
   If error `no basic auth credentials` occurs, then run (enter user/password when prompted):
@@ -69,7 +69,7 @@ Timestamp:
   command and then [run](#run).
 
   ```
-  docker pull public.aml-repo.cms.waikato.ac.nz:443/yolact/yolact:2020-02-11_train
+  docker pull public.aml-repo.cms.waikato.ac.nz:443/yolact/yolact_train:2020-02-11
   ```
 
   If error `no basic auth credentials` occurs, then run (enter user/password when prompted):
@@ -82,8 +82,8 @@ Timestamp:
 
   ```
   docker tag \
-    public.aml-repo.cms.waikato.ac.nz:443/yolact/yolact:2020-02-11_train \
-    yolact/yolact:2020-02-11_train
+    public.aml-repo.cms.waikato.ac.nz:443/yolact/yolact_train:2020-02-11 \
+    yolact/yolact_train:2020-02-11
   ```
 
 * <a name="run">Run</a>
@@ -92,7 +92,7 @@ Timestamp:
   docker run --runtime=nvidia --shm-size 8G \
     -v /local:/container \
     -e YOLACT_CONFIG=/data/config/model-01.py \
-    -it yolact/yolact:2020-02-11_train \
+    -it yolact/yolact_train:2020-02-11 \
     --config=external_config --log_folder=/data/log \
     --validation_epoch 100    
   ```

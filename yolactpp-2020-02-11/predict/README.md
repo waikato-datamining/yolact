@@ -43,21 +43,21 @@ Timestamp:
 * Build
 
   ```
-  docker build -t yolact/yolactpp:2020-02-11_predict .
+  docker build -t yolact/yolactpp_predict:2020-02-11 .
   ```
 
 * Tag
 
   ```
   docker tag \
-    yolact/yolactpp:2020-02-11_predict \
-    public-push.aml-repo.cms.waikato.ac.nz:443/yolact/yolactpp:2020-02-11_predict
+    yolact/yolactpp_predict:2020-02-11 \
+    public-push.aml-repo.cms.waikato.ac.nz:443/yolact/yolactpp_predict:2020-02-11
   ```
 
 * Push
 
   ```
-  docker push public-push.aml-repo.cms.waikato.ac.nz:443/yolact/yolactpp:2020-02-11_predict
+  docker push public-push.aml-repo.cms.waikato.ac.nz:443/yolact/yolactpp_predict:2020-02-11
   ```
 
   If error `no basic auth credentials` occurs, then run (enter user/password when prompted):
@@ -72,7 +72,7 @@ Timestamp:
   command and then [run](#run).
 
   ```
-  docker pull public.aml-repo.cms.waikato.ac.nz:443/yolact/yolactpp:2020-02-11_predict
+  docker pull public.aml-repo.cms.waikato.ac.nz:443/yolact/yolactpp_predict:2020-02-11
   ```
 
   If error `no basic auth credentials` occurs, then run (enter user/password when prompted):
@@ -85,8 +85,8 @@ Timestamp:
 
   ```
   docker tag \
-    public.aml-repo.cms.waikato.ac.nz:443/yolact/yolactpp:2020-02-11_predict \
-    yolact/yolactpp:2020-02-11_predict
+    public.aml-repo.cms.waikato.ac.nz:443/yolact/yolactpp_predict:2020-02-11 \
+    yolact/yolactpp_predict:2020-02-11
   ```
 
 * <a name="run">Run</a>
@@ -95,7 +95,7 @@ Timestamp:
   docker run --runtime=nvidia --shm-size 8G \
     -v /local:/container \
     -e YOLACTPP_CONFIG=/data/config/model-01.py \
-    -it yolact/yolactpp:2020-02-11_predict \
+    -it yolact/yolactpp_predict:2020-02-11 \
     --config=external_config --trained_model=weights/MODELNAME.pth \
     --score_threshold=0.15 --top_k=200 \
     --output_polygons --output_minrect \
