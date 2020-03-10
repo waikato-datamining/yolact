@@ -234,7 +234,7 @@ def predict(model, input_dir, output_dir, tmp_dir, top_k, score_threshold, delet
 
                 info = ImageInfo(os.path.basename(im_list[i]))
                 roiext = (info, roiobjs)
-                roiwriter = ROIWriter(output=tmp_dir if tmp_dir is not None else output_dir, no_images=True)
+                roiwriter = ROIWriter(["--output", str(tmp_dir if tmp_dir is not None else output_dir), "--no-images"])
                 roiwriter.save([roiext])
                 if tmp_dir is not None:
                     os.rename(roi_path_tmp, roi_path)
