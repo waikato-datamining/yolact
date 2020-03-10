@@ -15,7 +15,7 @@ from utils.augmentations import FastBaseTransform
 from wai.annotations.core import ImageInfo
 from wai.annotations.roi import ROIObject
 from wai.annotations.roi.io import ROIWriter
-from wai.annotations.image_utils import mask_to_polygon, polygon_to_minrect, polygon_to_lists
+from wai.annotations.image_utils import mask_to_polygon, polygon_to_minrect, polygon_to_lists, lists_to_polygon, polygon_to_bbox
 
 SUPPORTED_EXTS = [".jpg", ".jpeg", ".png", ".bmp"]
 """ supported file extensions (lower case). """
@@ -26,7 +26,7 @@ MAX_INCOMPLETE = 3
 
 def predictions_to_rois(dets_out, width, height, top_k, score_threshold,
                         output_polygons, mask_threshold, mask_nth, output_minrect,
-                        view_margin, fully_connected):
+                        view_margin, fully_connected, fit_bbox_to_polygon):
     """
     Turns the predictions into ROI objects
     :param dets_out: the predictions
@@ -50,6 +50,8 @@ def predictions_to_rois(dets_out, width, height, top_k, score_threshold,
     :type view_margin: int
     :param fully_connected: whether regions of 'high' or 'low' values should be fully-connected at isthmuses
     :type fully_connected: str
+    :param fit_bbox_to_polygon: whether to fit the bounding box to the polygon
+    :type fit_bbox_to_polygon: bool
     :return: the list of ROIObjects
     :rtype: list
     """
@@ -106,13 +108,16 @@ def predictions_to_rois(dets_out, width, height, top_k, score_threshold,
                 pxn = []
                 pyn = []
                 mask = masks[j,:,:][:,:,0]
-                poly = mask_to_polygon(mask, mask_threshold=mask_threshold, mask_nth=mask_nth, view=(x0, y0, x1, y1),
-                                       view_margin=view_margin, fully_connected=fully_connected)
+                poly = mask_to_polygon(mask, mask_threshold=mask_threshold, mask_nth=mask_nth, view=(x0, y0, x1, y1), view_margin=view_margin, fully_connected=fully_connected)
                 if len(poly) > 0:
                     px, py = polygon_to_lists(poly[0], swap_x_y=True, normalize=False, as_string=True)
                     pxn, pyn = polygon_to_lists(poly[0], swap_x_y=True, normalize=True, img_width=width, img_height=height, as_string=True)
                     if output_minrect:
                         bw, bh = polygon_to_minrect(poly[0])
+                    if fit_bbox_to_polygon and (len(px) >= 3):
+                        x0, y0, x1, y1 = polygon_to_bbox(lists_to_polygon(px, py))
+                        x0n, y0n, x1n, y1n = polygon_to_bbox(lists_to_polygon(pxn, pyn))
+
             roiobj = ROIObject(x0, y0, x1, y1, x0n, y0n, x1n, y1n, label, label_str, score=score,
                                poly_x=px, poly_y=py, poly_xn=pxn, poly_yn=pyn,
                                minrect_w=bw, minrect_h=bh)
@@ -123,7 +128,7 @@ def predictions_to_rois(dets_out, width, height, top_k, score_threshold,
 
 def predict(model, input_dir, output_dir, tmp_dir, top_k, score_threshold, delete_input,
             output_polygons, mask_threshold, mask_nth, output_minrect,
-            view_margin, fully_connected):
+            view_margin, fully_connected, fit_bbox_to_polygon):
     """
     Loads the model/config and performs predictions.
 
@@ -157,6 +162,8 @@ def predict(model, input_dir, output_dir, tmp_dir, top_k, score_threshold, delet
     :type view_margin: int
     :param fully_connected: whether regions of 'high' or 'low' values should be fully-connected at isthmuses
     :type fully_connected: str
+    :param fit_bbox_to_polygon: whether to fit the bounding box to the polygon
+    :type fit_bbox_to_polygon: bool
     """
 
     # counter for keeping track of images that cannot be processed
@@ -223,7 +230,7 @@ def predict(model, input_dir, output_dir, tmp_dir, top_k, score_threshold, delet
                 preds = model(batch)
                 roiobjs = predictions_to_rois(preds, width, height, top_k, score_threshold,
                                               output_polygons, mask_threshold, mask_nth, output_minrect,
-                                              view_margin, fully_connected)
+                                              view_margin, fully_connected, fit_bbox_to_polygon)
 
                 info = ImageInfo(os.path.basename(im_list[i]))
                 roiext = (info, roiobjs)
@@ -279,6 +286,8 @@ def main(argv=None):
                         help='Whether to delete the input images rather than moving them to the output directory.')
     parser.add_argument('--output_polygons', action='store_true',
                         help='Whether to masks are predicted and polygons should be output in the ROIS CSV files', required=False, default=False)
+    parser.add_argument('--fit_bbox_to_polygon', action='store_true',
+                        help='When outputting polygons whether to fit the bounding box to the polygon', required=False, default=False)
     parser.add_argument('--mask_threshold', type=float,
                         help='The threshold (0-1) to use for determining the contour of a mask', required=False, default=0.1)
     parser.add_argument('--mask_nth', type=int,
@@ -316,7 +325,8 @@ def main(argv=None):
         predict(model=net, input_dir=parsed.prediction_in, output_dir=parsed.prediction_out, tmp_dir=parsed.prediction_tmp,
                 top_k=parsed.top_k, score_threshold=parsed.score_threshold, delete_input=parsed.delete_input,
                 output_polygons=parsed.output_polygons, mask_threshold=parsed.mask_threshold, mask_nth=parsed.mask_nth,
-                output_minrect=parsed.output_minrect, view_margin=parsed.view_margin, fully_connected=parsed.fully_connected)
+                output_minrect=parsed.output_minrect, view_margin=parsed.view_margin, fully_connected=parsed.fully_connected,
+                fit_bbox_to_polygon=parsed.fit_bbox_to_polygon)
 
 
 if __name__ == '__main__':
