@@ -128,7 +128,7 @@ def predictions_to_rois(dets_out, width, height, top_k, score_threshold,
 
 def predict(model, input_dir, output_dir, tmp_dir, top_k, score_threshold, delete_input,
             output_polygons, mask_threshold, mask_nth, output_minrect,
-            view_margin, fully_connected, fit_bbox_to_polygon):
+            view_margin, fully_connected, fit_bbox_to_polygon, output_width_height):
     """
     Loads the model/config and performs predictions.
 
@@ -164,6 +164,8 @@ def predict(model, input_dir, output_dir, tmp_dir, top_k, score_threshold, delet
     :type fully_connected: str
     :param fit_bbox_to_polygon: whether to fit the bounding box to the polygon
     :type fit_bbox_to_polygon: bool
+    :param output_width_height: whether to output x/y/w/h instead of x0/y0/x1/y1
+    :type output_width_height: bool
     """
 
     # counter for keeping track of images that cannot be processed
@@ -234,7 +236,10 @@ def predict(model, input_dir, output_dir, tmp_dir, top_k, score_threshold, delet
 
                 info = ImageInfo(os.path.basename(im_list[i]))
                 roiext = (info, roiobjs)
-                roiwriter = ROIWriter(["--output", str(tmp_dir if tmp_dir is not None else output_dir), "--no-images"])
+                options = ["--output", str(tmp_dir if tmp_dir is not None else output_dir), "--no-images"]
+                if output_width_height:
+                    options.append("--size-mode")
+                roiwriter = ROIWriter(options)
                 roiwriter.save([roiext])
                 if tmp_dir is not None:
                     os.rename(roi_path_tmp, roi_path)
@@ -298,6 +303,8 @@ def main(argv=None):
                         help='The number of pixels to use as margin around the masks when determining the polygon')
     parser.add_argument('--fully_connected', default='high', choices=['high', 'low'], required=False,
                         help='When determining polygons, whether regions of high or low values should be fully-connected at isthmuses')
+    parser.add_argument('--output_width_height', action='store_true', help="Whether to output x/y/w/h instead of x0/y0/x1/y1 in the ROI CSV files",
+                        required=False, default=False)
     parsed = parser.parse_args(args=argv)
 
     with torch.no_grad():
@@ -326,7 +333,7 @@ def main(argv=None):
                 top_k=parsed.top_k, score_threshold=parsed.score_threshold, delete_input=parsed.delete_input,
                 output_polygons=parsed.output_polygons, mask_threshold=parsed.mask_threshold, mask_nth=parsed.mask_nth,
                 output_minrect=parsed.output_minrect, view_margin=parsed.view_margin, fully_connected=parsed.fully_connected,
-                fit_bbox_to_polygon=parsed.fit_bbox_to_polygon)
+                fit_bbox_to_polygon=parsed.fit_bbox_to_polygon, output_width_height=parsed.output_width_height)
 
 
 if __name__ == '__main__':
