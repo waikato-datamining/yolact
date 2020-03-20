@@ -26,7 +26,7 @@ MAX_INCOMPLETE = 3
 
 def predictions_to_rois(dets_out, width, height, top_k, score_threshold,
                         output_polygons, mask_threshold, mask_nth, output_minrect,
-                        view_margin, fully_connected, fit_bbox_to_polygon):
+                        view_margin, fully_connected, fit_bbox_to_polygon, bbox_as_fallback):
     """
     Turns the predictions into ROI objects
     :param dets_out: the predictions
@@ -52,6 +52,8 @@ def predictions_to_rois(dets_out, width, height, top_k, score_threshold,
     :type fully_connected: str
     :param fit_bbox_to_polygon: whether to fit the bounding box to the polygon
     :type fit_bbox_to_polygon: bool
+    :param bbox_as_fallback: if ratio between polygon-bbox and bbox is smaller than this value, use bbox as fallback polygon, ignored if < 0
+    :type bbox_as_fallback: float
     :return: the list of ROIObjects
     :rtype: list
     """
@@ -114,9 +116,28 @@ def predictions_to_rois(dets_out, width, height, top_k, score_threshold,
                     pxn, pyn = polygon_to_lists(poly[0], swap_x_y=True, normalize=True, img_width=width, img_height=height, as_string=True)
                     if output_minrect:
                         bw, bh = polygon_to_minrect(poly[0])
-                    if fit_bbox_to_polygon and (len(px) >= 3):
-                        x0, y0, x1, y1 = polygon_to_bbox(lists_to_polygon(px, py))
-                        x0n, y0n, x1n, y1n = polygon_to_bbox(lists_to_polygon(pxn, pyn))
+                    if bbox_as_fallback >= 0:
+                        if len(px) >= 3:
+                            p_x0n, p_y0n, p_x1n, p_y1n = polygon_to_bbox(lists_to_polygon(pxn, pyn))
+                            p_area = (p_x1n - p_x0n) * (p_y1n - p_y0n)
+                            b_area = (x1n - x0n) * (y1n - y0n)
+                            if (b_area > 0) and (p_area / b_area < bbox_as_fallback):
+                                px = [float(i) for i in [x0, x1, x1, x0]]
+                                py = [float(i) for i in [y0, y0, y1, y1]]
+                                pxn = [float(i) for i in [x0n, x1n, x1n, x0n]]
+                                pyn = [float(i) for i in [y0n, y0n, y1n, y1n]]
+                        else:
+                            px = [float(i) for i in [x0, x1, x1, x0]]
+                            py = [float(i) for i in [y0, y0, y1, y1]]
+                            pxn = [float(i) for i in [x0n, x1n, x1n, x0n]]
+                            pyn = [float(i) for i in [y0n, y0n, y1n, y1n]]
+                        if output_minrect:
+                            bw = x1 - x0 + 1
+                            bh = y1 - y0 + 1
+                    if fit_bbox_to_polygon:
+                        if len(px) >= 3:
+                            x0, y0, x1, y1 = polygon_to_bbox(lists_to_polygon(px, py))
+                            x0n, y0n, x1n, y1n = polygon_to_bbox(lists_to_polygon(pxn, pyn))
 
             roiobj = ROIObject(x0, y0, x1, y1, x0n, y0n, x1n, y1n, label, label_str, score=score,
                                poly_x=px, poly_y=py, poly_xn=pxn, poly_yn=pyn,
@@ -128,7 +149,8 @@ def predictions_to_rois(dets_out, width, height, top_k, score_threshold,
 
 def predict(model, input_dir, output_dir, tmp_dir, top_k, score_threshold, delete_input,
             output_polygons, mask_threshold, mask_nth, output_minrect,
-            view_margin, fully_connected, fit_bbox_to_polygon, output_width_height):
+            view_margin, fully_connected, fit_bbox_to_polygon, output_width_height,
+            bbox_as_fallback):
     """
     Loads the model/config and performs predictions.
 
@@ -166,6 +188,8 @@ def predict(model, input_dir, output_dir, tmp_dir, top_k, score_threshold, delet
     :type fit_bbox_to_polygon: bool
     :param output_width_height: whether to output x/y/w/h instead of x0/y0/x1/y1
     :type output_width_height: bool
+    :param bbox_as_fallback: if ratio between polygon-bbox and bbox is smaller than this value, use bbox as fallback polygon, ignored if < 0
+    :type bbox_as_fallback: float
     """
 
     # counter for keeping track of images that cannot be processed
@@ -232,7 +256,7 @@ def predict(model, input_dir, output_dir, tmp_dir, top_k, score_threshold, delet
                 preds = model(batch)
                 roiobjs = predictions_to_rois(preds, width, height, top_k, score_threshold,
                                               output_polygons, mask_threshold, mask_nth, output_minrect,
-                                              view_margin, fully_connected, fit_bbox_to_polygon)
+                                              view_margin, fully_connected, fit_bbox_to_polygon, bbox_as_fallback)
 
                 info = ImageInfo(os.path.basename(im_list[i]))
                 roiext = (info, roiobjs)
@@ -293,6 +317,10 @@ def main(argv=None):
                         help='Whether to masks are predicted and polygons should be output in the ROIS CSV files', required=False, default=False)
     parser.add_argument('--fit_bbox_to_polygon', action='store_true',
                         help='When outputting polygons whether to fit the bounding box to the polygon', required=False, default=False)
+    parser.add_argument('--bbox_as_fallback', default=-1.0, type=float,
+                        help='When outputting polygons the bbox can be used as fallback polygon. This happens if the ratio '
+                             + 'between the surrounding bbox of the polygon and the bbox is smaller than the specified value. '
+                             + 'Turned off if < 0.', required=False)
     parser.add_argument('--mask_threshold', type=float,
                         help='The threshold (0-1) to use for determining the contour of a mask', required=False, default=0.1)
     parser.add_argument('--mask_nth', type=int,
@@ -306,6 +334,9 @@ def main(argv=None):
     parser.add_argument('--output_width_height', action='store_true', help="Whether to output x/y/w/h instead of x0/y0/x1/y1 in the ROI CSV files",
                         required=False, default=False)
     parsed = parser.parse_args(args=argv)
+
+    if parsed.fit_bbox_to_polygon and (parsed.bbox_as_fallback >= 0):
+        raise Exception("Options --fit_bbox_to_polygon and --bbox_as_fallback cannot be used together!")
 
     with torch.no_grad():
         # initializing cudnn
@@ -333,7 +364,8 @@ def main(argv=None):
                 top_k=parsed.top_k, score_threshold=parsed.score_threshold, delete_input=parsed.delete_input,
                 output_polygons=parsed.output_polygons, mask_threshold=parsed.mask_threshold, mask_nth=parsed.mask_nth,
                 output_minrect=parsed.output_minrect, view_margin=parsed.view_margin, fully_connected=parsed.fully_connected,
-                fit_bbox_to_polygon=parsed.fit_bbox_to_polygon, output_width_height=parsed.output_width_height)
+                fit_bbox_to_polygon=parsed.fit_bbox_to_polygon, output_width_height=parsed.output_width_height,
+                bbox_as_fallback=parsed.bbox_as_fallback)
 
 
 if __name__ == '__main__':
