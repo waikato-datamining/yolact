@@ -26,7 +26,8 @@ MAX_INCOMPLETE = 3
 
 def predictions_to_rois(dets_out, width, height, top_k, score_threshold,
                         output_polygons, mask_threshold, mask_nth, output_minrect,
-                        view_margin, fully_connected, fit_bbox_to_polygon, bbox_as_fallback):
+                        view_margin, fully_connected, fit_bbox_to_polygon, bbox_as_fallback,
+                        scale):
     """
     Turns the predictions into ROI objects
     :param dets_out: the predictions
@@ -54,6 +55,8 @@ def predictions_to_rois(dets_out, width, height, top_k, score_threshold,
     :type fit_bbox_to_polygon: bool
     :param bbox_as_fallback: if ratio between polygon-bbox and bbox is smaller than this value, use bbox as fallback polygon, ignored if < 0
     :type bbox_as_fallback: float
+    :param scale: the scale to use for the image (0-1)
+    :type scale: float
     :return: the list of ROIObjects
     :rtype: list
     """
@@ -95,6 +98,11 @@ def predictions_to_rois(dets_out, width, height, top_k, score_threshold,
             y0n = y0 / height
             x1n = x1 / width
             y1n = y1 / height
+            if scale != 1.0:
+                x0 = int(x0 / scale)
+                y0 = int(y0 / scale)
+                x1 = int(x1 / scale)
+                y1 = int(y1 / scale)
             label = classes[j]
             score = scores[j]
             label_str = class_labels[classes[j]]
@@ -110,12 +118,18 @@ def predictions_to_rois(dets_out, width, height, top_k, score_threshold,
                 pxn = []
                 pyn = []
                 mask = masks[j,:,:][:,:,0]
-                poly = mask_to_polygon(mask, mask_threshold=mask_threshold, mask_nth=mask_nth, view=(x0, y0, x1, y1), view_margin=view_margin, fully_connected=fully_connected)
+                poly = mask_to_polygon(mask, mask_threshold=mask_threshold, mask_nth=mask_nth, view=(int(x0 * scale), int(y0 * scale), int(x1 * scale), int(y1 * scale)), view_margin=view_margin, fully_connected=fully_connected)
                 if len(poly) > 0:
                     px, py = polygon_to_lists(poly[0], swap_x_y=True, normalize=False)
+                    if scale != 1.0:
+                        px = [x / scale for x in px]
+                        py = [y / scale for y in py]
                     pxn, pyn = polygon_to_lists(poly[0], swap_x_y=True, normalize=True, img_width=width, img_height=height)
                     if output_minrect:
                         bw, bh = polygon_to_minrect(poly[0])
+                        if scale != 1.0:
+                            bw = bw / scale
+                            bh = bh / scale
                     if bbox_as_fallback >= 0:
                         if len(px) >= 3:
                             p_x0n, p_y0n, p_x1n, p_y1n = polygon_to_bbox(lists_to_polygon(pxn, pyn))
@@ -150,7 +164,7 @@ def predictions_to_rois(dets_out, width, height, top_k, score_threshold,
 def predict(model, input_dir, output_dir, tmp_dir, top_k, score_threshold, delete_input,
             output_polygons, mask_threshold, mask_nth, output_minrect,
             view_margin, fully_connected, fit_bbox_to_polygon, output_width_height,
-            bbox_as_fallback):
+            bbox_as_fallback, scale):
     """
     Loads the model/config and performs predictions.
 
@@ -190,6 +204,8 @@ def predict(model, input_dir, output_dir, tmp_dir, top_k, score_threshold, delet
     :type output_width_height: bool
     :param bbox_as_fallback: if ratio between polygon-bbox and bbox is smaller than this value, use bbox as fallback polygon, ignored if < 0
     :type bbox_as_fallback: float
+    :param scale: the scale to use for the image (0-1)
+    :type scale: float
     """
 
     # counter for keeping track of images that cannot be processed
@@ -250,13 +266,17 @@ def predict(model, input_dir, output_dir, tmp_dir, top_k, score_threshold, delet
                     roi_path_tmp = "{}/{}-rois.tmp".format(output_dir, os.path.splitext(os.path.basename(im_list[i]))[0])
 
                 img = cv2.imread(im_list[i])
+                # scale image
+                if scale != 1.0:
+                    img = cv2.resize(img, (0,0), fx=scale, fy=scale)
                 height, width, _ = img.shape
                 frame = torch.from_numpy(img).cuda().float()
                 batch = FastBaseTransform()(frame.unsqueeze(0))
                 preds = model(batch)
                 roiobjs = predictions_to_rois(preds, width, height, top_k, score_threshold,
                                               output_polygons, mask_threshold, mask_nth, output_minrect,
-                                              view_margin, fully_connected, fit_bbox_to_polygon, bbox_as_fallback)
+                                              view_margin, fully_connected, fit_bbox_to_polygon, bbox_as_fallback,
+                                              scale)
 
                 info = ImageInfo(os.path.basename(im_list[i]))
                 roiext = (info, roiobjs)
@@ -333,6 +353,8 @@ def main(argv=None):
                         help='When determining polygons, whether regions of high or low values should be fully-connected at isthmuses')
     parser.add_argument('--output_width_height', action='store_true', help="Whether to output x/y/w/h instead of x0/y0/x1/y1 in the ROI CSV files",
                         required=False, default=False)
+    parser.add_argument('--scale', type=float,
+                        help='The scale factor to apply to the image (0-1) before processing. Output will be in original dimension space.', required=False, default=1.0)
     parsed = parser.parse_args(args=argv)
 
     if parsed.fit_bbox_to_polygon and (parsed.bbox_as_fallback >= 0):
@@ -365,7 +387,7 @@ def main(argv=None):
                 output_polygons=parsed.output_polygons, mask_threshold=parsed.mask_threshold, mask_nth=parsed.mask_nth,
                 output_minrect=parsed.output_minrect, view_margin=parsed.view_margin, fully_connected=parsed.fully_connected,
                 fit_bbox_to_polygon=parsed.fit_bbox_to_polygon, output_width_height=parsed.output_width_height,
-                bbox_as_fallback=parsed.bbox_as_fallback)
+                bbox_as_fallback=parsed.bbox_as_fallback, scale=parsed.scale)
 
 
 if __name__ == '__main__':
