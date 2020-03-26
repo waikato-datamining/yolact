@@ -164,7 +164,7 @@ def predictions_to_rois(dets_out, width, height, top_k, score_threshold,
 def predict(model, input_dir, output_dir, tmp_dir, top_k, score_threshold, delete_input,
             output_polygons, mask_threshold, mask_nth, output_minrect,
             view_margin, fully_connected, fit_bbox_to_polygon, output_width_height,
-            bbox_as_fallback, scale):
+            bbox_as_fallback, scale, debayer):
     """
     Loads the model/config and performs predictions.
 
@@ -206,11 +206,18 @@ def predict(model, input_dir, output_dir, tmp_dir, top_k, score_threshold, delet
     :type bbox_as_fallback: float
     :param scale: the scale to use for the image (0-1)
     :type scale: float
+    :param debayer: the OpenCV2 debayering type to use, eg COLOR_BAYER_BG2BGR
+    :type debayer: str
     """
 
     # counter for keeping track of images that cannot be processed
     incomplete_counter = dict()
     num_imgs = 1
+
+    # evaluate debayering constant
+    debayer_int = None
+    if debayer is not None:
+        debayer_int = int(eval("cv2." + debayer))
 
     while True:
         start_time = datetime.now()
@@ -265,10 +272,17 @@ def predict(model, input_dir, output_dir, tmp_dir, top_k, score_threshold, delet
                 else:
                     roi_path_tmp = "{}/{}-rois.tmp".format(output_dir, os.path.splitext(os.path.basename(im_list[i]))[0])
 
-                img = cv2.imread(im_list[i])
+                # debayer image?
+                if debayer_int is None:
+                    img = cv2.imread(im_list[i])
+                else:
+                    raw = cv2.imread(im_list[i], cv2.IMREAD_GRAYSCALE | cv2.IMREAD_ANYDEPTH)
+                    img = cv2.cvtColor(raw, debayer_int)
+
                 # scale image
                 if scale != 1.0:
                     img = cv2.resize(img, (0,0), fx=scale, fy=scale)
+
                 height, width, _ = img.shape
                 frame = torch.from_numpy(img).cuda().float()
                 batch = FastBaseTransform()(frame.unsqueeze(0))
@@ -355,10 +369,14 @@ def main(argv=None):
                         required=False, default=False)
     parser.add_argument('--scale', type=float,
                         help='The scale factor to apply to the image (0-1) before processing. Output will be in original dimension space.', required=False, default=1.0)
+    parser.add_argument('--debayer', default=None, type=str,
+                        help='The OpenCV2 debayering method to use, eg "COLOR_BAYER_BG2BGR"', required=False)
     parsed = parser.parse_args(args=argv)
 
     if parsed.fit_bbox_to_polygon and (parsed.bbox_as_fallback >= 0):
         raise Exception("Options --fit_bbox_to_polygon and --bbox_as_fallback cannot be used together!")
+    if (parsed.debayer is not None) and ("COLOR_BAYER_" not in parsed.debayer):
+        raise Exception("Expected debayering type to start with COLOR_BAYER_, instead got: " + str(parsed.debayer))
 
     with torch.no_grad():
         # initializing cudnn
@@ -387,7 +405,7 @@ def main(argv=None):
                 output_polygons=parsed.output_polygons, mask_threshold=parsed.mask_threshold, mask_nth=parsed.mask_nth,
                 output_minrect=parsed.output_minrect, view_margin=parsed.view_margin, fully_connected=parsed.fully_connected,
                 fit_bbox_to_polygon=parsed.fit_bbox_to_polygon, output_width_height=parsed.output_width_height,
-                bbox_as_fallback=parsed.bbox_as_fallback, scale=parsed.scale)
+                bbox_as_fallback=parsed.bbox_as_fallback, scale=parsed.scale, debayer=parsed.debayer)
 
 
 if __name__ == '__main__':
