@@ -161,10 +161,10 @@ def predictions_to_rois(dets_out, width, height, top_k, score_threshold,
     return result
 
 
-def predict(model, input_dir, output_dir, tmp_dir, top_k, score_threshold, delete_input,
-            output_polygons, mask_threshold, mask_nth, output_minrect,
-            view_margin, fully_connected, fit_bbox_to_polygon, output_width_height,
-            bbox_as_fallback, scale, debayer):
+def predict(model, input_dir, output_dir, tmp_dir=None, top_k=5, score_threshold=0.0, delete_input=False,
+            output_polygons=False, mask_threshold=0.1, mask_nth=1, output_minrect=False,
+            view_margin=2, fully_connected='high', fit_bbox_to_polygon=False, output_width_height=False,
+            bbox_as_fallback=False, scale=1.0, debayer=None, continuous=False):
     """
     Loads the model/config and performs predictions.
 
@@ -208,6 +208,8 @@ def predict(model, input_dir, output_dir, tmp_dir, top_k, score_threshold, delet
     :type scale: float
     :param debayer: the OpenCV2 debayering type to use, eg COLOR_BAYER_BG2BGR
     :type debayer: str
+    :param continuous: whether to delete the images from the input directory rather than moving them to the output directory
+    :type continuous: bool
     """
 
     # counter for keeping track of images that cannot be processed
@@ -216,7 +218,7 @@ def predict(model, input_dir, output_dir, tmp_dir, top_k, score_threshold, delet
 
     # evaluate debayering constant
     debayer_int = None
-    if debayer is not None:
+    if (debayer is not None) and ("COLOR_BAYER_" in debayer):
         debayer_int = int(eval("cv2." + debayer))
 
     while True:
@@ -259,8 +261,11 @@ def predict(model, input_dir, output_dir, tmp_dir, top_k, score_threshold, delet
                 break
 
         if len(im_list) == 0:
-            time.sleep(1)
-            break
+            if continuous:
+                time.sleep(1)
+                continue
+            else:
+                break
         else:
             print("%s - %s" % (str(datetime.now()), ", ".join(os.path.basename(x) for x in im_list)))
 
@@ -345,6 +350,8 @@ def main(argv=None):
                         help='The directory to store the results in.')
     parser.add_argument('--prediction_tmp', default=None, type=str, required=False,
                         help='The directory to store the results in first, before moving them to the actual output directory.')
+    parser.add_argument('--continuous', action="store_true",
+                        help='Whether to continuously poll the input directory or exit once all initial images have been processed.')
     parser.add_argument('--delete_input', action="store_true",
                         help='Whether to delete the input images rather than moving them to the output directory.')
     parser.add_argument('--output_polygons', action='store_true',
@@ -405,7 +412,8 @@ def main(argv=None):
                 output_polygons=parsed.output_polygons, mask_threshold=parsed.mask_threshold, mask_nth=parsed.mask_nth,
                 output_minrect=parsed.output_minrect, view_margin=parsed.view_margin, fully_connected=parsed.fully_connected,
                 fit_bbox_to_polygon=parsed.fit_bbox_to_polygon, output_width_height=parsed.output_width_height,
-                bbox_as_fallback=parsed.bbox_as_fallback, scale=parsed.scale, debayer=parsed.debayer)
+                bbox_as_fallback=parsed.bbox_as_fallback, scale=parsed.scale, debayer=parsed.debayer,
+                continuous=parsed.continuous)
 
 
 if __name__ == '__main__':
