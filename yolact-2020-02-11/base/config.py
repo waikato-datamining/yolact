@@ -838,3 +838,19 @@ if os.getenv('YOLACT_CONFIG') is not None:
         external_config = module.external_config
         external_dataset = module.external_dataset
 
+if os.getenv('YOLACT_CONFIG2') is not None:
+    if os.path.exists(os.getenv('YOLACT_CONFIG2')):
+        spec = importlib.util.spec_from_file_location('external_config2', os.environ['YOLACT_CONFIG2'])
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        external_config2 = module.external_config2
+        external_dataset2 = module.external_dataset2
+
+if os.getenv('YOLACT_CONFIG3') is not None:
+    if os.path.exists(os.getenv('YOLACT_CONFIG3')):
+        spec = importlib.util.spec_from_file_location('external_config3', os.environ['YOLACT_CONFIG3'])
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        external_config3 = module.external_config3
+        external_dataset3 = module.external_dataset3
+

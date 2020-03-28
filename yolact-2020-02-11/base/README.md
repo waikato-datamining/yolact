@@ -145,3 +145,14 @@ Timestamp:
     --output_polygons --output_minrect \
     --prediction_in /predictions/in/ --prediction_out /predictions/out/    
   ```
+
+## Additional configurations
+
+* You can use `YOLACT_CONFIG2` and `YOLACT_CONFIG3` to supply two more
+  configurations.
+  
+* Use `--config=external_config2` and `--config=external_config3` respectively
+  when referring to them.
+
+* Within the configuration file itself, by sure to reference the dataset correctly
+  via `'dataset': external_dataset2,` or `'dataset': external_dataset2,`
