@@ -161,10 +161,76 @@ def predictions_to_rois(dets_out, width, height, top_k, score_threshold,
     return result
 
 
+def predict_image(model, img_path, img=None, top_k=5, score_threshold=0.0,
+            output_polygons=False, mask_threshold=0.1, mask_nth=1, output_minrect=False,
+            view_margin=2, fully_connected='high', fit_bbox_to_polygon=False,
+            bbox_as_fallback=False, scale=1.0, debayer_int=None):
+    """
+    Detects objects in an image.
+
+    :param img_path: the path to the image to detect objects in, ignored if img not None
+    :type img_path: str
+    :param img: the image to detect the objects in; uses img_path if None.
+    :type img: ndarray
+    :param model: the model to use for the predictions
+    :type model: Yolact
+    :param top_k: the top X predictions (= objects) to parse
+    :type top_k: int
+    :param score_threshold: the score threshold to use
+    :type score_threshold: float
+    :param output_polygons: whether the model predicts masks and polygons should be stored in the CSV files
+    :type output_polygons: bool
+    :param mask_threshold: the threshold to use for determining the contour of a mask
+    :type mask_threshold: float
+    :param mask_nth: to speed up polygon computation, use only every nth row and column from mask
+    :type mask_nth: int
+    :param output_minrect: when predicting polygons, whether to output the minimal rectangles around the objects as well
+    :type output_minrect: bool
+    :param view_margin: the margin in pixels to use around the masks
+    :type view_margin: int
+    :param fully_connected: whether regions of 'high' or 'low' values should be fully-connected at isthmuses
+    :type fully_connected: str
+    :param fit_bbox_to_polygon: whether to fit the bounding box to the polygon
+    :type fit_bbox_to_polygon: bool
+    :param bbox_as_fallback: if ratio between polygon-bbox and bbox is smaller than this value, use bbox as fallback polygon, ignored if < 0
+    :type bbox_as_fallback: float
+    :param scale: the scale to use for the image (0-1)
+    :type scale: float
+    :param debayer_int: the debayering constant (cv2.COLOR_BAYER_XYZ) or None if not to debayer
+    :type debayer_int: int
+    :return: tuple of ImageInfo and list of ROIObject instances
+    :rtype: tuple
+    """
+
+    if img is None:
+        # debayer image?
+        if debayer_int is None:
+            img = cv2.imread(img_path)
+        else:
+            raw = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE | cv2.IMREAD_ANYDEPTH)
+            img = cv2.cvtColor(raw, debayer_int)
+
+    # scale image
+    if scale != 1.0:
+        img = cv2.resize(img, (0,0), fx=scale, fy=scale)
+
+    height, width, _ = img.shape
+    frame = torch.from_numpy(img).cuda().float()
+    batch = FastBaseTransform()(frame.unsqueeze(0))
+    preds = model(batch)
+    roiobjs = predictions_to_rois(preds, width, height, top_k, score_threshold,
+                                  output_polygons, mask_threshold, mask_nth, output_minrect,
+                                  view_margin, fully_connected, fit_bbox_to_polygon, bbox_as_fallback,
+                                  scale)
+
+    info = ImageInfo(os.path.basename(img_path))
+    return info, roiobjs
+
+
 def predict(model, input_dir, output_dir, tmp_dir=None, top_k=5, score_threshold=0.0, delete_input=False,
             output_polygons=False, mask_threshold=0.1, mask_nth=1, output_minrect=False,
             view_margin=2, fully_connected='high', fit_bbox_to_polygon=False, output_width_height=False,
-            bbox_as_fallback=False, scale=1.0, debayer=None, continuous=False):
+            bbox_as_fallback=False, scale=1.0, debayer="", continuous=False):
     """
     Loads the model/config and performs predictions.
 
@@ -182,10 +248,6 @@ def predict(model, input_dir, output_dir, tmp_dir=None, top_k=5, score_threshold
     :type score_threshold: float
     :param delete_input: whether to delete the images from the input directory rather than moving them to the output directory
     :type delete_input: bool
-    :param fast_nms: use a faster, but not entirely correct version of NMS
-    :type fast_nms: bool
-    :param cross_class_nms: compute NMS cross-class or per-class
-    :type cross_class_nms: bool
     :param output_polygons: whether the model predicts masks and polygons should be stored in the CSV files
     :type output_polygons: bool
     :param mask_threshold: the threshold to use for determining the contour of a mask
@@ -206,7 +268,7 @@ def predict(model, input_dir, output_dir, tmp_dir=None, top_k=5, score_threshold
     :type bbox_as_fallback: float
     :param scale: the scale to use for the image (0-1)
     :type scale: float
-    :param debayer: the OpenCV2 debayering type to use, eg COLOR_BAYER_BG2BGR
+    :param debayer: the OpenCV2 debayering type to use, eg COLOR_BAYER_BG2BGR; ignored if empty string or None
     :type debayer: str
     :param continuous: whether to delete the images from the input directory rather than moving them to the output directory
     :type continuous: bool
@@ -218,7 +280,7 @@ def predict(model, input_dir, output_dir, tmp_dir=None, top_k=5, score_threshold
 
     # evaluate debayering constant
     debayer_int = None
-    if (debayer is not None) and ("COLOR_BAYER_" in debayer):
+    if (debayer is not None) and debayer.startswith("COLOR_BAYER_"):
         debayer_int = int(eval("cv2." + debayer))
 
     while True:
@@ -277,28 +339,11 @@ def predict(model, input_dir, output_dir, tmp_dir=None, top_k=5, score_threshold
                 else:
                     roi_path_tmp = "{}/{}-rois.tmp".format(output_dir, os.path.splitext(os.path.basename(im_list[i]))[0])
 
-                # debayer image?
-                if debayer_int is None:
-                    img = cv2.imread(im_list[i])
-                else:
-                    raw = cv2.imread(im_list[i], cv2.IMREAD_GRAYSCALE | cv2.IMREAD_ANYDEPTH)
-                    img = cv2.cvtColor(raw, debayer_int)
-
-                # scale image
-                if scale != 1.0:
-                    img = cv2.resize(img, (0,0), fx=scale, fy=scale)
-
-                height, width, _ = img.shape
-                frame = torch.from_numpy(img).cuda().float()
-                batch = FastBaseTransform()(frame.unsqueeze(0))
-                preds = model(batch)
-                roiobjs = predictions_to_rois(preds, width, height, top_k, score_threshold,
-                                              output_polygons, mask_threshold, mask_nth, output_minrect,
-                                              view_margin, fully_connected, fit_bbox_to_polygon, bbox_as_fallback,
-                                              scale)
-
-                info = ImageInfo(os.path.basename(im_list[i]))
-                roiext = (info, roiobjs)
+                roiext = predict_image(model, im_list[i], top_k=top_k, score_threshold=score_threshold,
+                                       output_polygons=output_polygons, mask_threshold=mask_threshold,
+                                       mask_nth=mask_nth, output_minrect=output_minrect, view_margin=view_margin,
+                                       fully_connected=fully_connected, fit_bbox_to_polygon=fit_bbox_to_polygon,
+                                       bbox_as_fallback=bbox_as_fallback, scale=scale, debayer_int=debayer_int)
                 options = ["--output", str(tmp_dir if tmp_dir is not None else output_dir), "--no-images"]
                 if output_width_height:
                     options.append("--size-mode")
@@ -376,13 +421,13 @@ def main(argv=None):
                         required=False, default=False)
     parser.add_argument('--scale', type=float,
                         help='The scale factor to apply to the image (0-1) before processing. Output will be in original dimension space.', required=False, default=1.0)
-    parser.add_argument('--debayer', default=None, type=str,
+    parser.add_argument('--debayer', default="", type=str,
                         help='The OpenCV2 debayering method to use, eg "COLOR_BAYER_BG2BGR"', required=False)
     parsed = parser.parse_args(args=argv)
 
     if parsed.fit_bbox_to_polygon and (parsed.bbox_as_fallback >= 0):
         raise Exception("Options --fit_bbox_to_polygon and --bbox_as_fallback cannot be used together!")
-    if (parsed.debayer is not None) and ("COLOR_BAYER_" not in parsed.debayer):
+    if (parsed.debayer is not None) and not (parsed.debayer == "") and not parsed.debayer.startswith("COLOR_BAYER_"):
         raise Exception("Expected debayering type to start with COLOR_BAYER_, instead got: " + str(parsed.debayer))
 
     with torch.no_grad():
