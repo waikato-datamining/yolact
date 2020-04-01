@@ -1,0 +1,4 @@
+#!/bin/bash
+
+cd /yolactpp
+python eval.py "$@"
