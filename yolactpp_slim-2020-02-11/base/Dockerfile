@@ -1,6 +1,7 @@
 ARG DOCKER_REGISTRY=public.aml-repo.cms.waikato.ac.nz:443/
 FROM ${DOCKER_REGISTRY}nvidia/cuda:10.0-cudnn7-devel-ubuntu18.04
 
+ENV TORCH_CUDA_ARCH_LIST=Volta;Turing;Kepler+Tesla
 RUN apt-get update && \
     apt-get install -y software-properties-common wget && \
     add-apt-repository -y ppa:deadsnakes/ppa && \
