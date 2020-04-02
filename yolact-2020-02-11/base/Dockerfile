@@ -11,7 +11,7 @@ RUN apt-get update && \
     cd /yolact && \
     git reset --hard f54b0a5b17a7c547e92c4d7026be6542f43862e7 && \
     pip install Cython && \
-    pip install opencv-python "pillow<7.0.0" pycocotools matplotlib torchvision==0.4.0 python_image_complete wai.annotations planar && \
+    pip install opencv-python==4.1.1.26 "pillow<7.0.0" pycocotools matplotlib torchvision==0.4.0 python_image_complete wai.annotations planar && \
     rm -Rf /root/.cache/pip && \
     rm -rf /var/lib/apt/lists/*
 

@@ -13,7 +13,7 @@ RUN apt-get update && \
     rm get-pip.py && \
     python -m pip install Cython && \
     python -m pip install numpy && \
-    python -m pip install opencv-python "pillow<7.0.0" pycocotools matplotlib torchvision==0.4.0 python_image_complete wai.annotations planar && \
+    python -m pip install opencv-python==4.1.1.26 "pillow<7.0.0" pycocotools matplotlib torchvision==0.4.0 torch=1.4.0 python_image_complete wai.annotations planar && \
     git clone https://github.com/dbolya/yolact.git /yolactpp && \
     cd /yolactpp && \
     git reset --hard f54b0a5b17a7c547e92c4d7026be6542f43862e7 && \
