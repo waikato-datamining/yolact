@@ -3,6 +3,8 @@
 Uses [YOLACT++](https://github.com/dbolya/yolact/) for object detection (masks).
 Uses Python3.7 instead of Anaconda for the base image, hence *slim*.
 
+**NB:** Runs only on 2080Ti and newer, not 1080Ti.
+
 ## Version
 
 YOLACT++ github repo hash (commit 322):
@@ -18,6 +20,31 @@ Timestamp:
 ```
 
 ## Docker
+
+### Quick start
+
+* Log into registry using *public* credentials:
+
+  ```commandline
+  docker login -u public -p public public.aml-repo.cms.waikato.ac.nz:443 
+  ```
+
+* Pull and run image (adjust volume mappings `-v`):
+
+  ```commandline
+  docker run --runtime=nvidia --shm-size 8G \
+    -v /local/dir:/container/dir \
+    -it public.aml-repo.cms.waikato.ac.nz:443/yolact/yolactpp_slim:2020-02-11
+  ```
+
+  **NB:** For docker versions 19.03 (`docker version`) and newer, use `--gpus=all` instead of `--runtime=nvidia`.
+
+* If need be, remove all containers and images from your system:
+
+  ```commandline
+  docker stop $(docker ps -a -q) && docker rm $(docker ps -a -q) && docker system prune -a
+  ```
+ 
 
 ### Build local image
 
