@@ -28,6 +28,7 @@ RUN cd /yolactpp/external/DCNv2 && \
     python setup.py build develop && \
     rm -Rf /root/.cache/pip
 
+COPY bash.bashrc /etc/bash.bashrc
 COPY config.py /yolactpp/data
 COPY predict.py /yolactpp
 COPY yolactpp_* /usr/bin/

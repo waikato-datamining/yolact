@@ -15,6 +15,7 @@ RUN apt-get update && \
     rm -Rf /root/.cache/pip && \
     rm -rf /var/lib/apt/lists/*
 
+COPY bash.bashrc /etc/bash.bashrc
 COPY config.py /yolact/data
 COPY predict.py /yolact
 COPY yolact_* /usr/bin/
