@@ -6,6 +6,8 @@ Uses Python3.7 instead of Anaconda for the base image, hence *slim*.
 
 Uses PyTorch 1.4 and CUDA 10.0.
 
+Does not work on 1080 Ti cards. 
+
 ## Version
 
 YOLACT++ github repo hash (commit 322):
