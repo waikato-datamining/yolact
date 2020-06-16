@@ -1,7 +1,10 @@
 # Training yolact++ slim (2020-02-11)
 
 Uses [YOLACT++](https://github.com/dbolya/yolact/) for object detection (masks).
+
 Uses Python3.7 instead of Anaconda for the base image, hence *slim*.
+
+Uses PyTorch 1.4 and CUDA 10.0.
 
 ## Version
 

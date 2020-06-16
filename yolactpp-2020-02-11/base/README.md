@@ -2,6 +2,8 @@
 
 Uses [YOLACT++](https://github.com/dbolya/yolact/) for object detection (masks).
 
+Uses PyTorch 1.2 and CUDA 10.0.
+
 ## Version
 
 YOLACT++ github repo hash (commit 322):
