@@ -59,7 +59,7 @@ Timestamp:
 
   ```
   docker run --runtime=nvidia --shm-size 8G  --name yolactpp_container -ti -v \
-    /path_to/local_disk/containing_data:/path_to/mount/inside/docker_container \
+    /local/dir:/container/dir \
     yolactpp bash
   ```
 
@@ -117,10 +117,10 @@ Timestamp:
 * <a name="run">Run</a>
 
   ```
-  docker run --runtime=nvidia --shm-size 8G -v /local:/container -it yolact/yolactpp:2020-02-11
+  docker run --runtime=nvidia --shm-size 8G -v /local/dir:/container/dir -it yolact/yolactpp:2020-02-11
   ```
 
-  `/local:/container` maps a local disk directory into a directory inside the container.
+  `/local/dir:/container/dir` maps a local disk directory into a directory inside the container.
   Typically, you would map the `weights` (pre-trained models) and the data (annotations, 
   log, etc):
 

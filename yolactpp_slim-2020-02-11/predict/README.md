@@ -36,12 +36,12 @@ Timestamp:
 
   ```
   docker run --runtime=nvidia --shm-size 8G -ti \
-    -v /path_to/local_disk/containing_data:/path_to/mount/inside/docker_container \
+    -v /local/dir:/container/dir \
     -e YOLACTPP_CONFIG=/data/config/model-01.py \
     yolactpp_slim_predict bash
   ```
 
-  `/local:/container` maps a local disk directory into a directory inside the container
+  `/local/dir:/container/dir` maps a local disk directory into a directory inside the container
 
 
 ### Pre-built images
@@ -99,7 +99,7 @@ Timestamp:
 
   ```
   docker run --runtime=nvidia --shm-size 8G \
-    -v /local:/container \
+    -v /local/dir:/container/dir \
     -e YOLACTPP_CONFIG=/data/config/model-01.py \
     -it yolact/yolactpp_slim_predict:2020-02-11 \
     --config=external_config --trained_model=weights/MODELNAME.pth \
@@ -108,7 +108,7 @@ Timestamp:
     --prediction_in /predictions/in/ --prediction_out /predictions/out/    
   ```
 
-  `/local:/container` maps a local disk directory into a directory inside the container.
+  `/local/dir:/container/dir` maps a local disk directory into a directory inside the container.
   Typically, you would map the `weights` (pre-trained models) and the data (annotations, 
   log, etc):
 

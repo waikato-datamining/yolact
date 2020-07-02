@@ -34,7 +34,7 @@ Timestamp:
 
   ```
   docker run --runtime=nvidia --shm-size 8G -ti \
-    -v /path_to/local_disk/containing_data:/path_to/mount/inside/docker_container \
+    -v /local/dir:/container/dir \
     -e YOLACT_CONFIG=/data/config/model-01.py \
     yolact_train bash
   ```
@@ -94,14 +94,14 @@ Timestamp:
 
   ```
   docker run --runtime=nvidia --shm-size 8G \
-    -v /local:/container \
+    -v /local/dir:/container/dir \
     -e YOLACT_CONFIG=/data/config/model-01.py \
     -it yolact/yolact_train:2020-02-11 \
     --config=external_config --log_folder=/data/log \
     --validation_epoch 100    
   ```
 
-  `/local:/container` maps a local disk directory into a directory inside the container.
+  `/local/dir:/container/dir` maps a local disk directory into a directory inside the container.
   Typically, you would map the `weights` (pre-trained models) and the data (annotations, 
   log, etc):
 
