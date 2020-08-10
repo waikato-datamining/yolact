@@ -51,7 +51,7 @@ Timestamp:
 
 ### Build local image
 
-* Build image yolact from Docker file (from within `yolactpp_slim-2020-02-11/base`):
+* Build image yolact from Docker file (from within `yolactpp_slim-2020-02-11`):
 
   ```
   docker build -t yolactpp_slim .
