@@ -35,12 +35,12 @@ Timestamp:
 * Pull and run image (adjust volume mappings `-v`):
 
   ```commandline
-  docker run --runtime=nvidia --shm-size 8G \
+  docker run --gpus=all --shm-size 8G \
     -v /local/dir:/container/dir \
     -it public.aml-repo.cms.waikato.ac.nz:443/yolact/yolactpp_slim:2020-02-11
   ```
 
-  **NB:** For docker versions 19.03 (`docker version`) and newer, use `--gpus=all` instead of `--runtime=nvidia`.
+  **NB:** For docker versions older than 19.03 (`docker version`), use `--runtime=nvidia` instead of `--gpus=all`.
 
 * If need be, remove all containers and images from your system:
 
@@ -60,7 +60,7 @@ Timestamp:
 * Run image `yolactpp_slim` in interactive mode (i.e., using `bash`) as container `yolact_slim_container`:
 
   ```
-  docker run --runtime=nvidia --shm-size 8G  --name yolactpp_slim_container -ti -v \
+  docker run --gpus=all --shm-size 8G  --name yolactpp_slim_container -ti -v \
     /local/dir:/container/dir \
     yolactpp_slim bash
   ```
@@ -119,7 +119,7 @@ Timestamp:
 * <a name="run">Run</a>
 
   ```
-  docker run --runtime=nvidia --shm-size 8G -v /local/dir:/container/dir -it yolact/yolactpp_slim:2020-02-11
+  docker run --gpus=all --shm-size 8G -v /local/dir:/container/dir -it yolact/yolactpp_slim:2020-02-11
   ```
 
   `/local/dir:/container/dir` maps a local disk directory into a directory inside the container.
