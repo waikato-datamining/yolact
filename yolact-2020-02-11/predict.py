@@ -162,6 +162,14 @@ def predictions_to_rois(dets_out, width, height, top_k, score_threshold,
 
                 if output_mask_image:
                     mask_img = mask.copy()
+                    # apply threshold
+                    mask_img[mask_img < mask_threshold] = 0
+                    # mask out everything outside detected box
+                    m = np.zeros(mask.shape)
+                    s = np.ones((y1 - y0, x1 - x0))
+                    m[y0:y0+s.shape[0], x0:x0+s.shape[1]] = s
+                    mask_img = np.where(m == 1, mask_img, 0)
+                    # use label for color
                     mask_img[mask_img < mask_threshold] = 0
                     mask_img[mask_img >= mask_threshold] = label+1  # first label is 0
                     if mask_comb is None:
