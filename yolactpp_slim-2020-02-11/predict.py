@@ -1,6 +1,8 @@
 import argparse
 import cv2
 from datetime import datetime
+from PIL import Image
+import numpy as np
 import os
 import time
 import torch
@@ -27,7 +29,7 @@ MAX_INCOMPLETE = 3
 def predictions_to_rois(dets_out, width, height, top_k, score_threshold,
                         output_polygons, mask_threshold, mask_nth, output_minrect,
                         view_margin, fully_connected, fit_bbox_to_polygon, bbox_as_fallback,
-                        scale):
+                        scale, output_mask_image):
     """
     Turns the predictions into ROI objects
     :param dets_out: the predictions
@@ -57,11 +59,14 @@ def predictions_to_rois(dets_out, width, height, top_k, score_threshold,
     :type bbox_as_fallback: float
     :param scale: the scale to use for the image (0-1)
     :type scale: float
-    :return: the list of ROIObjects
-    :rtype: list
+    :param output_mask_image: when generating masks, whether to output a combined mask image as well
+    :type output_mask_image: bool
+    :return: the list of ROIObjects and output_mask image
+    :rtype: tuple
     """
 
     result = []
+    mask_comb = None
 
     with timer.env('Postprocess'):
         save = cfg.rescore_bbox
@@ -85,6 +90,8 @@ def predictions_to_rois(dets_out, width, height, top_k, score_threshold,
     # the class labels
     if isinstance(cfg.dataset.class_names, list):
         class_labels = cfg.dataset.class_names
+    elif isinstance(cfg.dataset.class_names, tuple):
+        class_labels = list(cfg.dataset.class_names)
     else:
         class_labels = [cfg.dataset.class_names]
 
@@ -153,18 +160,28 @@ def predictions_to_rois(dets_out, width, height, top_k, score_threshold,
                             x0, y0, x1, y1 = polygon_to_bbox(lists_to_polygon(px, py))
                             x0n, y0n, x1n, y1n = polygon_to_bbox(lists_to_polygon(pxn, pyn))
 
+                if output_mask_image:
+                    mask_img = mask.copy()
+                    mask_img[mask_img < mask_threshold] = 0
+                    mask_img[mask_img >= mask_threshold] = label+1  # first label is 0
+                    if mask_comb is None:
+                        mask_comb = mask_img
+                    else:
+                        tmp = np.where(mask_comb==0, mask_img, mask_comb)
+                        mask_comb = tmp
+
             roiobj = ROIObject(x0, y0, x1, y1, x0n, y0n, x1n, y1n, label, label_str, score=score,
                                poly_x=px, poly_y=py, poly_xn=pxn, poly_yn=pyn,
                                minrect_w=bw, minrect_h=bh)
             result.append(roiobj)
 
-    return result
+    return result, mask_comb
 
 
 def predict_image(model, img_path, img=None, top_k=5, score_threshold=0.0,
             output_polygons=False, mask_threshold=0.1, mask_nth=1, output_minrect=False,
             view_margin=2, fully_connected='high', fit_bbox_to_polygon=False,
-            bbox_as_fallback=False, scale=1.0, debayer_int=None):
+            bbox_as_fallback=False, scale=1.0, debayer_int=None, output_mask_image=False):
     """
     Detects objects in an image.
 
@@ -198,7 +215,9 @@ def predict_image(model, img_path, img=None, top_k=5, score_threshold=0.0,
     :type scale: float
     :param debayer_int: the debayering constant (cv2.COLOR_BAYER_XYZ) or None if not to debayer
     :type debayer_int: int
-    :return: tuple of ImageInfo and list of ROIObject instances
+    :param output_mask_image: when generating masks, whether to output a combined mask image as well
+    :type output_mask_image: bool
+    :return: tuple of ImageInfo, list of ROIObject instances and combined mask image
     :rtype: tuple
     """
 
@@ -218,19 +237,19 @@ def predict_image(model, img_path, img=None, top_k=5, score_threshold=0.0,
     frame = torch.from_numpy(img).cuda().float()
     batch = FastBaseTransform()(frame.unsqueeze(0))
     preds = model(batch)
-    roiobjs = predictions_to_rois(preds, width, height, top_k, score_threshold,
+    roiobjs, mask_comb = predictions_to_rois(preds, width, height, top_k, score_threshold,
                                   output_polygons, mask_threshold, mask_nth, output_minrect,
                                   view_margin, fully_connected, fit_bbox_to_polygon, bbox_as_fallback,
-                                  scale)
+                                  scale, output_mask_image)
 
     info = ImageInfo(os.path.basename(img_path))
-    return info, roiobjs
+    return info, roiobjs, mask_comb
 
 
 def predict(model, input_dir, output_dir, tmp_dir=None, top_k=5, score_threshold=0.0, delete_input=False,
             output_polygons=False, mask_threshold=0.1, mask_nth=1, output_minrect=False,
             view_margin=2, fully_connected='high', fit_bbox_to_polygon=False, output_width_height=False,
-            bbox_as_fallback=False, scale=1.0, debayer="", continuous=False):
+            bbox_as_fallback=False, scale=1.0, debayer="", continuous=False, output_mask_image=False):
     """
     Loads the model/config and performs predictions.
 
@@ -272,6 +291,8 @@ def predict(model, input_dir, output_dir, tmp_dir=None, top_k=5, score_threshold
     :type debayer: str
     :param continuous: whether to delete the images from the input directory rather than moving them to the output directory
     :type continuous: bool
+    :param output_mask_image: when generating masks, whether to output a combined mask image as well
+    :type output_mask_image: bool
     """
 
     # counter for keeping track of images that cannot be processed
@@ -334,16 +355,21 @@ def predict(model, input_dir, output_dir, tmp_dir=None, top_k=5, score_threshold
         try:
             for i in range(len(im_list)):
                 roi_path = "{}/{}-rois.csv".format(output_dir, os.path.splitext(os.path.basename(im_list[i]))[0])
+                img_path = "{}/{}-mask.png".format(output_dir, os.path.splitext(os.path.basename(im_list[i]))[0])
                 if tmp_dir is not None:
                     roi_path_tmp = "{}/{}-rois.tmp".format(tmp_dir, os.path.splitext(os.path.basename(im_list[i]))[0])
+                    img_path_tmp = "{}/{}-mask.tmp".format(tmp_dir, os.path.splitext(os.path.basename(im_list[i]))[0])
                 else:
                     roi_path_tmp = "{}/{}-rois.tmp".format(output_dir, os.path.splitext(os.path.basename(im_list[i]))[0])
+                    img_path_tmp = "{}/{}-mask.tmp".format(output_dir, os.path.splitext(os.path.basename(im_list[i]))[0])
 
-                roiext = predict_image(model, im_list[i], top_k=top_k, score_threshold=score_threshold,
+                info, roiobjs, mask_comb = predict_image(model, im_list[i], top_k=top_k, score_threshold=score_threshold,
                                        output_polygons=output_polygons, mask_threshold=mask_threshold,
                                        mask_nth=mask_nth, output_minrect=output_minrect, view_margin=view_margin,
                                        fully_connected=fully_connected, fit_bbox_to_polygon=fit_bbox_to_polygon,
-                                       bbox_as_fallback=bbox_as_fallback, scale=scale, debayer_int=debayer_int)
+                                       bbox_as_fallback=bbox_as_fallback, scale=scale, debayer_int=debayer_int,
+                                       output_mask_image=output_mask_image)
+                roiext = (info, roiobjs)
                 options = ["--output", str(tmp_dir if tmp_dir is not None else output_dir), "--no-images"]
                 if output_width_height:
                     options.append("--size-mode")
@@ -351,6 +377,11 @@ def predict(model, input_dir, output_dir, tmp_dir=None, top_k=5, score_threshold
                 roiwriter.save([roiext])
                 if tmp_dir is not None:
                     os.rename(roi_path_tmp, roi_path)
+
+                if mask_comb is not None:
+                    im = Image.fromarray(np.uint8(mask_comb), 'P')
+                    im.save(img_path_tmp, "PNG")
+                    os.rename(img_path_tmp, img_path)
         except:
             print("Failed processing images: {}".format(",".join(im_list)))
             print(traceback.format_exc())
@@ -423,6 +454,8 @@ def main(argv=None):
                         help='The scale factor to apply to the image (0-1) before processing. Output will be in original dimension space.', required=False, default=1.0)
     parser.add_argument('--debayer', default="", type=str,
                         help='The OpenCV2 debayering method to use, eg "COLOR_BAYER_BG2BGR"', required=False)
+    parser.add_argument('--output_mask_image', action='store_true', default=False,
+                        help="Whether to output a mask image (PNG) when predictions generate masks", required=False)
     parsed = parser.parse_args(args=argv)
 
     if parsed.fit_bbox_to_polygon and (parsed.bbox_as_fallback >= 0):
@@ -458,7 +491,7 @@ def main(argv=None):
                 output_minrect=parsed.output_minrect, view_margin=parsed.view_margin, fully_connected=parsed.fully_connected,
                 fit_bbox_to_polygon=parsed.fit_bbox_to_polygon, output_width_height=parsed.output_width_height,
                 bbox_as_fallback=parsed.bbox_as_fallback, scale=parsed.scale, debayer=parsed.debayer,
-                continuous=parsed.continuous)
+                continuous=parsed.continuous, output_mask_image=parsed.output_mask_image)
 
 
 if __name__ == '__main__':
