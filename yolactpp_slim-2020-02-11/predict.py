@@ -76,7 +76,7 @@ def predictions_to_rois(dets_out, width, height, top_k, score_threshold,
 
     with timer.env('Copy'):
         idx = t[1].argsort(0, descending=True)[:top_k]
-        if output_polygons:
+        if output_polygons or output_mask_image:
             classes, scores, boxes, masks = [x[idx].cpu().numpy() for x in t]
         else:
             classes, scores, boxes = [x[idx].cpu().numpy() for x in t[:3]]
@@ -97,8 +97,10 @@ def predictions_to_rois(dets_out, width, height, top_k, score_threshold,
 
     if num_dets_to_consider > 0:
         # After this, mask is of size [num_dets, h, w, 1]
-        if output_polygons:
+        if output_polygons or output_mask_image:
             masks = masks[:num_dets_to_consider, :, :, None]
+            mask = masks[j,:,:][:,:,0]
+
         for j in range(num_dets_to_consider):
             x0, y0, x1, y1 = boxes[j, :]
             x0n = x0 / width
@@ -124,7 +126,6 @@ def predictions_to_rois(dets_out, width, height, top_k, score_threshold,
                 py = []
                 pxn = []
                 pyn = []
-                mask = masks[j,:,:][:,:,0]
                 poly = mask_to_polygon(mask, mask_threshold=mask_threshold, mask_nth=mask_nth, view=(int(x0 * scale), int(y0 * scale), int(x1 * scale), int(y1 * scale)), view_margin=view_margin, fully_connected=fully_connected)
                 if len(poly) > 0:
                     px, py = polygon_to_lists(poly[0], swap_x_y=True, normalize=False)
@@ -160,23 +161,23 @@ def predictions_to_rois(dets_out, width, height, top_k, score_threshold,
                             x0, y0, x1, y1 = polygon_to_bbox(lists_to_polygon(px, py))
                             x0n, y0n, x1n, y1n = polygon_to_bbox(lists_to_polygon(pxn, pyn))
 
-                if output_mask_image:
-                    mask_img = mask.copy()
-                    # apply threshold
-                    mask_img[mask_img < mask_threshold] = 0
-                    # mask out everything outside detected box
-                    m = np.zeros(mask.shape)
-                    s = np.ones((y1 - y0, x1 - x0))
-                    m[y0:y0+s.shape[0], x0:x0+s.shape[1]] = s
-                    mask_img = np.where(m == 1, mask_img, 0)
-                    # use label for color
-                    mask_img[mask_img < mask_threshold] = 0
-                    mask_img[mask_img >= mask_threshold] = label+1  # first label is 0
-                    if mask_comb is None:
-                        mask_comb = mask_img
-                    else:
-                        tmp = np.where(mask_comb==0, mask_img, mask_comb)
-                        mask_comb = tmp
+            if output_mask_image:
+                mask_img = mask.copy()
+                # apply threshold
+                mask_img[mask_img < mask_threshold] = 0
+                # mask out everything outside detected box
+                m = np.zeros(mask.shape)
+                s = np.ones((y1 - y0, x1 - x0))
+                m[y0:y0+s.shape[0], x0:x0+s.shape[1]] = s
+                mask_img = np.where(m == 1, mask_img, 0)
+                # use label for color
+                mask_img[mask_img < mask_threshold] = 0
+                mask_img[mask_img >= mask_threshold] = label+1  # first label is 0
+                if mask_comb is None:
+                    mask_comb = mask_img
+                else:
+                    tmp = np.where(mask_comb==0, mask_img, mask_comb)
+                    mask_comb = tmp
 
             roiobj = ROIObject(x0, y0, x1, y1, x0n, y0n, x1n, y1n, label, label_str, score=score,
                                poly_x=px, poly_y=py, poly_xn=pxn, poly_yn=pyn,
@@ -463,7 +464,7 @@ def main(argv=None):
     parser.add_argument('--debayer', default="", type=str,
                         help='The OpenCV2 debayering method to use, eg "COLOR_BAYER_BG2BGR"', required=False)
     parser.add_argument('--output_mask_image', action='store_true', default=False,
-                        help="Whether to output a mask image (PNG) when predictions generate masks", required=False)
+                        help="Whether to output a mask image (PNG) when predictions generate masks (independent of outputting polygons)", required=False)
     parsed = parser.parse_args(args=argv)
 
     if parsed.fit_bbox_to_polygon and (parsed.bbox_as_fallback >= 0):
