@@ -39,7 +39,7 @@ Timestamp:
   ```
 
   **NB:** For docker versions older than 19.03 (`docker version`), use `--runtime=nvidia` instead of `--gpus=all`.
-``````
+
 * If need be, remove all containers and images from your system:
 
   ```commandline
