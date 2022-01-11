@@ -46,6 +46,14 @@ Timestamp:
   docker stop $(docker ps -a -q) && docker rm $(docker ps -a -q) && docker system prune -a
   ```
  
+### Docker hub
+
+The image is also available from [Docker hub](https://hub.docker.com/u/waikatodatamining):
+
+```
+waikatodatamining/yolactpp:2020-02-11
+```
+
 
 ### Build local image
 
